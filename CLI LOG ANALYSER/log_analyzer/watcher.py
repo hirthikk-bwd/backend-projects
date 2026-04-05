@@ -28,7 +28,7 @@ def watch_file(
     alerts_triggered = 0
     start_time = datetime.now(timezone.utc)
 
-    with filepath.open() as f:
+    with open(str(filepath), "r", encoding="utf-8", errors="ignore") as f:
         f.seek(0,2)
         try:
             while True:
