@@ -6,6 +6,7 @@ from log_analyzer.models import AnalysisResult
 
 console = Console()
 
+
 def print_summary(result: AnalysisResult) -> None:
     """Print a summary panel with key metrics."""
     start, end = result.time_range
@@ -20,6 +21,7 @@ def print_summary(result: AnalysisResult) -> None:
     )
     console.print(Panel(summary, title="LOG ANALYSIS REPORT", style="bold blue"))
 
+
 def print_status_codes(result: AnalysisResult) -> None:
     """Print status code distribution table with color coding."""
     table = Table(title="Status Code Distribution")
@@ -28,7 +30,7 @@ def print_status_codes(result: AnalysisResult) -> None:
     table.add_column("Percentage")
 
     for code, count in sorted(result.status_code_counts.items()):
-        percentage = (count / result.total_requests * 100)
+        percentage = count / result.total_requests * 100
         pct_str = f"{percentage:.1f}%"
 
         if code < 300:
@@ -47,6 +49,7 @@ def print_status_codes(result: AnalysisResult) -> None:
         )
     console.print(table)
 
+
 def print_top_ips(result: AnalysisResult) -> None:
     """Print top IP addresses by request count."""
     table = Table(title="Top IP Addresses")
@@ -58,6 +61,7 @@ def print_top_ips(result: AnalysisResult) -> None:
 
     console.print(table)
 
+
 def print_top_endpoints(result: AnalysisResult) -> None:
     """Print top endpoints by request count."""
     table = Table(title="Top Endpoints")
@@ -68,6 +72,7 @@ def print_top_endpoints(result: AnalysisResult) -> None:
         table.add_row(endpoint, str(count))
 
     console.print(table)
+
 
 def print_report(result: AnalysisResult) -> None:
     """Print the full analysis report."""

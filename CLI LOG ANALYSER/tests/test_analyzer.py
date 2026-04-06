@@ -3,7 +3,10 @@ from datetime import datetime, timezone
 from log_analyzer.models import LogEntry
 from log_analyzer.analyzer import analyze
 
-def make_entry(status_code: int, ip: str = "192.168.1.1", path: str = "/api/test") -> LogEntry:
+
+def make_entry(
+    status_code: int, ip: str = "192.168.1.1", path: str = "/api/test"
+) -> LogEntry:
     """Helper to create a LogEntry for testing."""
     return LogEntry(
         ip=ip,
@@ -17,11 +20,13 @@ def make_entry(status_code: int, ip: str = "192.168.1.1", path: str = "/api/test
         user_agent="curl/7.68.0",
     )
 
+
 def test_total_requests():
     """Test total requests count."""
-    entries = [make_entry(200), make_entry(404),make_entry(500)]
+    entries = [make_entry(200), make_entry(404), make_entry(500)]
     result = analyze(entries)
     assert result.total_requests == 3
+
 
 def test_error_rate():
     """Test error rate calculation."""
@@ -29,11 +34,13 @@ def test_error_rate():
     result = analyze(entries)
     assert result.error_rate == 50.0
 
+
 def test_empty_entries():
     """Test that empty entries return safe defaults."""
     result = analyze([])
     assert result.total_requests == 0
     assert result.error_rate == 0.0
+
 
 def test_top_ips():
     """Test top IPs are sorted by counts."""

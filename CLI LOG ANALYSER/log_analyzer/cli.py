@@ -6,6 +6,7 @@ from log_analyzer.reporter import print_report
 from log_analyzer.exporter import export_json, export_csv
 from log_analyzer.generator import generate_log_file
 
+
 def main() -> None:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
@@ -16,14 +17,20 @@ def main() -> None:
     # analyze subcommand
     analyze_parser = subparsers.add_parser("analyze", help="Analyze a log file")
     analyze_parser.add_argument("filepath", type=Path, help="Path to log file")
-    analyze_parser.add_argument("--top-n", type=int, default=10, help="Number of top items")
-    analyze_parser.add_argument("--format", choices=["terminal", "json", "csv"], default="terminal")
+    analyze_parser.add_argument(
+        "--top-n", type=int, default=10, help="Number of top items"
+    )
+    analyze_parser.add_argument(
+        "--format", choices=["terminal", "json", "csv"], default="terminal"
+    )
     analyze_parser.add_argument("--output", type=Path, help="Output file path")
 
     # generate subcommand
     generate_parser = subparsers.add_parser("generate", help="Generate sample log file")
     generate_parser.add_argument("filepath", type=Path, help="Output file path")
-    generate_parser.add_argument("--lines", type=int, default=1000, help="Number of lines")
+    generate_parser.add_argument(
+        "--lines", type=int, default=1000, help="Number of lines"
+    )
 
     # watch subcommand
     watch_parser = subparsers.add_parser("watch", help="Watch log file in real time")
@@ -54,7 +61,9 @@ def main() -> None:
 
     elif args.command == "watch":
         from log_analyzer.watcher import watch_file
+
         watch_file(args.filepath, args.threshold, args.window, args.interval)
+
 
 if __name__ == "__main__":
     main()

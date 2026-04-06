@@ -4,19 +4,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from rich.console import Console
 from log_analyzer.parser import parse_line
-from log_analyzer.models import LogEntry, Alert
+from log_analyzer.models import LogEntry
 
 console = Console()
+
 
 def is_error(entry: LogEntry) -> bool:
     """Return True if the log entry is a 4xx or 5xx error."""
     return entry.status_code >= 400
 
+
 def watch_file(
-        filepath: Path,
-        threshold: int = 10,
-        window: int = 60,
-        interval: float = 1.0,
+    filepath: Path,
+    threshold: int = 10,
+    window: int = 60,
+    interval: float = 1.0,
 ) -> None:
     """Watch a log file in real time and alert on error spikes."""
     console.print(f"[bold green]Watching {filepath}...[/bold green]")
@@ -24,12 +26,12 @@ def watch_file(
 
     recent_entries: deque[LogEntry] = deque()
     total_requests = 0
-    total_errors =  0
+    total_errors = 0
     alerts_triggered = 0
     start_time = datetime.now(timezone.utc)
 
     with open(str(filepath), "r", encoding="utf-8", errors="ignore") as f:
-        f.seek(0,2)
+        f.seek(0, 2)
         try:
             while True:
                 line = f.readline()
@@ -44,9 +46,10 @@ def watch_file(
 
                         # Remove entries outside the time window
                         now = datetime.now(timezone.utc)
-                        while recent_entries and (
-                            now - recent_entries[0].timestamp
-                        ).seconds > window:
+                        while (
+                            recent_entries
+                            and (now - recent_entries[0].timestamp).seconds > window
+                        ):
                             recent_entries.popleft()
 
                         # Count errors in current window
@@ -65,12 +68,16 @@ def watch_file(
                             f"[{entry.timestamp.strftime('%H:%M:%S')}] "
                             f"Requests: {total_requests} | "
                             f"Errors in window: {error_count}/{window}s",
-                            end="\r"
+                            end="\r",
                         )
                 else:
                     time.sleep(interval)
 
         except KeyboardInterrupt:
             duration = (datetime.now(timezone.utc) - start_time).seconds
-            console.print(f"\n\n[bold]Watch session summary:[/bold]")
-            console.print(f"  Duration: {duration}s | Total requests: {total_requests} | Alerts: {alerts_triggered}")
+            console.print("\n\n[bold]Watch session summary:[/bold]")
+            console.print(
+                f"  Duration: {duration}s | "
+                f"Total requests: {total_requests} | "
+                f"Alerts: {alerts_triggered}"
+            )

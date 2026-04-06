@@ -3,6 +3,7 @@ import csv
 from pathlib import Path
 from log_analyzer.models import AnalysisResult
 
+
 def export_json(result: AnalysisResult, filepath: Path) -> None:
     """Export analysis result to a JSON file."""
     data = {
@@ -17,10 +18,11 @@ def export_json(result: AnalysisResult, filepath: Path) -> None:
         "time_range": [
             result.time_range[0].isoformat() if result.time_range[0] else None,
             result.time_range[1].isoformat() if result.time_range[1] else None,
-        ]
+        ],
     }
     with filepath.open("w") as f:
         json.dump(data, f, indent=4)
+
 
 def export_csv(result: AnalysisResult, filepath: Path) -> None:
     """Export analysis result to a CSV file."""

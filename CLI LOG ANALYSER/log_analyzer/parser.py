@@ -7,6 +7,7 @@ LOG_PATTERN = re.compile(
     r'^(\S+) - - \[(.+?)\] "(\S+) (\S+) (\S+)" (\d{3}) (\d+|-) "(.*?)" "(.*?)"$'
 )
 
+
 def parse_line(line: str) -> LogEntry | None:
     """Parse a single log line into a LogEntry. Returns None if unparseable."""
     match = LOG_PATTERN.match(line.strip())
@@ -30,6 +31,7 @@ def parse_line(line: str) -> LogEntry | None:
         referer=match.group(8),
         user_agent=match.group(9),
     )
+
 
 def parse_file(filepath: Path) -> list[LogEntry]:
     """Parse a log file and return a list of valid LogEntry objects."""
