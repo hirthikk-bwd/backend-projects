@@ -18,7 +18,7 @@ def create_app(config_name='default'):
         decode_responses=True
     )
 
-    from app.routes import url_bp
-    app.register_blueprint(url_bp)
+    from app.routes import bp
+    app.register_blueprint(bp)
 
     return app
