@@ -1,3 +1,4 @@
+from flask_migrate import Migrate
 import redis as redis_client
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -5,13 +6,14 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
-def create_app(config_name='default'):
+def create_app(config_name='development'):
     app = Flask(__name__)
 
     from config import config
     app.config.from_object(config[config_name])
 
     db.init_app(app)
+    Migrate(app, db)
 
     app.redis = redis_client.from_url(
         app.config['REDIS_URL'],
