@@ -4,18 +4,27 @@ from app import db
 from app.models import JobApplication
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+
 @jobs_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_jobs():
     user_id = get_jwt_identity()
     jobs = JobApplication.query.filter_by(user_id=user_id).all()
-    return jsonify([{
-        "id": job.id,
-        "company": job.company,
-        "role": job.role,
-        "status": job.status,
-        "notes": job.notes
-    } for job in jobs]), 200
+    return (
+        jsonify(
+            [
+                {
+                    "id": job.id,
+                    "company": job.company,
+                    "role": job.role,
+                    "status": job.status,
+                    "notes": job.notes,
+                }
+                for job in jobs
+            ]
+        ),
+        200,
+    )
 
 
 @jobs_bp.route("/", methods=["POST"])
@@ -32,7 +41,7 @@ def create_job():
         company=data.get("company"),
         role=data.get("role"),
         status=data.get("status", "applied"),
-        notes=data.get("notes", "")
+        notes=data.get("notes", ""),
     )
     db.session.add(job)
     db.session.commit()
