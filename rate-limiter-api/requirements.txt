@@ -1,5 +1,4 @@
-flask
-redis
-python-dotenv
-fakeredis
-gunicorn
+flask==3.1.2
+redis==7.4.0
+python-dotenv==1.2.2
+gunicorn==23.0.0

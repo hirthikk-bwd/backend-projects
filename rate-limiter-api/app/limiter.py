@@ -1,97 +1,98 @@
+import math
 import time
-import redis
-from flask import current_app
+import uuid
 
 
-def get_redis():
-    return redis.Redis(
-        host=current_app.config["REDIS_HOST"],
-        port=current_app.config["REDIS_PORT"],
-        db=0,
-        decode_responses=True,
-    )
+class WindowLimiter:
+    """Shared setup for limiters configured as N requests per window."""
 
-
-class FixedWindowLimiter:
-    def __init__(self, max_requests, window_seconds):
+    def __init__(self, redis_client, max_requests, window_seconds):
+        self.redis = redis_client
         self.max_requests = max_requests
         self.window_seconds = window_seconds
 
+
+class FixedWindowLimiter(WindowLimiter):
     def is_allowed(self, identifier):
-        r = get_redis()
         window = int(time.time()) // self.window_seconds
         key = f"rate_limit:fixed:{identifier}:{window}"
-        count = r.incr(key)
-        if count == 1:
-            r.expire(key, self.window_seconds)
+        # INCR + EXPIRE in one round trip, applied atomically (MULTI/EXEC)
+        pipe = self.redis.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, self.window_seconds)
+        count, _ = pipe.execute()
         return count <= self.max_requests
 
 
-class SlidingWindowLogLimiter:
-    def __init__(self, max_requests, window_seconds):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-
+class SlidingWindowLogLimiter(WindowLimiter):
     def is_allowed(self, identifier):
-        r = get_redis()
         now = time.time()
-        window_start = now - self.window_seconds
         key = f"rate_limit:swlog:{identifier}"
-        r.zremrangebyscore(key, 0, window_start)
-        r.zadd(key, {str(now): now})
-        r.expire(key, self.window_seconds)
-        count = r.zcount(key, window_start, now)
-        return count <= self.max_requests
+        # Unique member so concurrent requests with the same timestamp all count
+        member = f"{now}:{uuid.uuid4().hex}"
+        pipe = self.redis.pipeline()
+        pipe.zremrangebyscore(key, 0, now - self.window_seconds)
+        pipe.zadd(key, {member: now})
+        pipe.zcard(key)
+        pipe.expire(key, self.window_seconds)
+        _, _, count, _ = pipe.execute()
+        if count > self.max_requests:
+            # Don't let rejected requests occupy space in the window
+            self.redis.zrem(key, member)
+            return False
+        return True
+
+
+class SlidingWindowCounterLimiter(WindowLimiter):
+    def is_allowed(self, identifier):
+        now = time.time()
+        current_window = int(now) // self.window_seconds
+        current_key = f"rate_limit:swcount:{identifier}:{current_window}"
+        prev_key = f"rate_limit:swcount:{identifier}:{current_window - 1}"
+        # Claim a slot first (INCR is atomic), then undo it if over the limit
+        pipe = self.redis.pipeline()
+        pipe.incr(current_key)
+        pipe.expire(current_key, self.window_seconds * 2)
+        pipe.get(prev_key)
+        current_count, _, prev_count = pipe.execute()
+        elapsed_in_window = (now % self.window_seconds) / self.window_seconds
+        weighted_count = int(prev_count or 0) * (1 - elapsed_in_window)
+        if weighted_count + current_count - 1 >= self.max_requests:
+            self.redis.decr(current_key)
+            return False
+        return True
+
+
+# Refill and take a token in a single atomic step, so concurrent requests
+# can't both spend the last token.
+TOKEN_BUCKET_SCRIPT = """
+local max_tokens = tonumber(ARGV[1])
+local refill_rate = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local state = redis.call("HMGET", KEYS[1], "tokens", "last_time")
+local tokens = tonumber(state[1]) or max_tokens
+local last_time = tonumber(state[2]) or now
+tokens = math.min(max_tokens, tokens + (now - last_time) * refill_rate)
+local allowed = 0
+if tokens >= 1 then
+    tokens = tokens - 1
+    allowed = 1
+end
+redis.call("HSET", KEYS[1], "tokens", tokens, "last_time", now)
+redis.call("EXPIRE", KEYS[1], ARGV[4])
+return allowed
+"""
 
 
 class TokenBucketLimiter:
-    def __init__(self, max_tokens, refill_rate):
+    def __init__(self, redis_client, max_tokens, refill_rate):
         self.max = max_tokens
         self.refill_rate = refill_rate  # tokens per second
+        # Once the bucket would be full again the state is redundant; let it expire
+        self.ttl = math.ceil(max_tokens / refill_rate) + 1
+        self._script = redis_client.register_script(TOKEN_BUCKET_SCRIPT)
 
     def is_allowed(self, identifier):
-        r = get_redis()
-        now = time.time()
-        key_tokens = f"rate_limit:token:{identifier}:tokens"
-        key_time = f"rate_limit:token:{identifier}:last_time"
-
-        tokens = r.get(key_tokens)
-        last_time = r.get(key_time)
-
-        if tokens is None or last_time is None:
-            r.set(key_tokens, self.max - 1)
-            r.set(key_time, now)
-            return True
-
-        elapsed = now - float(last_time)
-        new_tokens = min(self.max, float(tokens) + elapsed * self.refill_rate)
-
-        if new_tokens < 1:
-            return False
-
-        r.set(key_tokens, new_tokens - 1)
-        r.set(key_time, now)
-        return True
-
-
-class SlidingWindowCounterLimiter:
-    def __init__(self, max_requests, window_seconds):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-
-    def is_allowed(self, identifier):
-        r = get_redis()
-        now = time.time()
-        current_window = int(now) // self.window_seconds
-        prev_window = current_window - 1
-        current_key = f"rate_limit:swcount:{identifier}:{current_window}"
-        prev_key = f"rate_limit:swcount:{identifier}:{prev_window}"
-        current_count = int(r.get(current_key) or 0)
-        prev_count = int(r.get(prev_key) or 0)
-        elapsed_in_window = (now % self.window_seconds) / self.window_seconds
-        weighted_count = prev_count * (1 - elapsed_in_window) + current_count
-        if weighted_count >= self.max_requests:
-            return False
-        r.incr(current_key)
-        r.expire(current_key, self.window_seconds * 2)
-        return True
+        key = f"rate_limit:token:{identifier}"
+        args = [self.max, self.refill_rate, time.time(), self.ttl]
+        return self._script(keys=[key], args=args) == 1

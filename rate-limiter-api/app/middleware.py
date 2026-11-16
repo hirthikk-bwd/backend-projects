@@ -1,14 +1,24 @@
-from flask import request, jsonify
+from flask import current_app, request, jsonify
 from app.limiter import FixedWindowLimiter
 
-limiter = FixedWindowLimiter(max_requests=5, window_seconds=60)
+
+def exempt(view):
+    """Mark a view so the rate limiter never blocks it."""
+    view.rate_limit_exempt = True
+    return view
 
 
-def init_limiter(app):
+def init_limiter(app, redis_client):
+    limiter = FixedWindowLimiter(
+        redis_client,
+        max_requests=app.config["RATE_LIMIT"],
+        window_seconds=app.config["RATE_WINDOW"],
+    )
+
     @app.before_request
     def check_rate_limit():
-        if request.path == "/unlimited":
+        view = current_app.view_functions.get(request.endpoint)
+        if getattr(view, "rate_limit_exempt", False):
             return None
-        identifier = request.remote_addr
-        if not limiter.is_allowed(identifier):
+        if not limiter.is_allowed(request.remote_addr):
             return jsonify({"error": "Rate Limit Exceeded"}), 429
