@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify
+from app.middleware import exempt
 
 bp = Blueprint("main", __name__)
 
@@ -14,5 +15,6 @@ def limited():
 
 
 @bp.route("/unlimited")
+@exempt
 def unlimited():
     return jsonify({"message": "This route is never blocked."})

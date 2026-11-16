@@ -8,4 +8,4 @@ COPY . .
 RUN adduser --disabled-password appuser
 USER appuser
 EXPOSE 5000
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "wsgi:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "run:app"]

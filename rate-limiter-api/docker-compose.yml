@@ -1,12 +1,15 @@
-version: "3.8"
-
 services:
   web:
     build: .
     ports:
       - "5000:5000"
-    env_file:
-      - .env
+    # Values come from .env if present (read automatically), else the defaults
+    environment:
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      RATE_LIMIT: ${RATE_LIMIT:-10}
+      RATE_WINDOW: ${RATE_WINDOW:-60}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-0}
     depends_on:
       - redis
 
@@ -14,4 +17,3 @@ services:
     image: redis:alpine
     ports:
       - "6379:6379"
-      

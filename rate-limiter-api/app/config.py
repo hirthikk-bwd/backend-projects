@@ -9,3 +9,4 @@ class Config:
     REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
     RATE_LIMIT = int(os.environ.get("RATE_LIMIT", 10))
     RATE_WINDOW = int(os.environ.get("RATE_WINDOW", 60))
+    TRUSTED_PROXIES = int(os.environ.get("TRUSTED_PROXIES", 0))

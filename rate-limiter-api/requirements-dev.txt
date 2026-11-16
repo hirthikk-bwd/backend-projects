@@ -1,0 +1,4 @@
+-r requirements.txt
+fakeredis[lua]==2.35.1
+pytest==9.0.2
+flake8==7.3.0

@@ -33,7 +33,12 @@ A Flask + Redis API that demonstrates four rate limiting algorithms implemented 
 
 ## How to Run
 
-    docker-compose up --build
+    docker compose up --build
+
+Run the tests:
+
+    pip install -r requirements-dev.txt
+    pytest
 
 ## Endpoints
 
@@ -47,4 +52,5 @@ A Flask + Redis API that demonstrates four rate limiting algorithms implemented 
 
 - Middleware pattern using Flask before_request hook
 - Redis as the state store for all rate limit counters
+- One shared Redis client per app; each check is a single atomic round trip (pipeline or Lua script)
 - Each algorithm trades off memory, accuracy, and burst tolerance differently
