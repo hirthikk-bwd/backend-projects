@@ -23,7 +23,6 @@ def create_app(config_overrides=None, redis_client=None):
             db=0,
             decode_responses=True,
         )
-    app.extensions["redis"] = redis_client
 
     from app.routes import bp
 
